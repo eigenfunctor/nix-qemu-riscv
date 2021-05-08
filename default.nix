@@ -25,9 +25,15 @@ let
 in
 
 stdenv.mkDerivation {
-  name = "qemu-riscv";
+  pname = "qemu-riscv";
+  version = "0.0.1";
 
-  buildInputs = [python qemu-system-riscv64 qemu-riscv64];
+  buildInputs = [
+    libguestfs-with-appliance
+    python
+    qemu-riscv64
+    qemu-system-riscv64
+  ];
 
   shellHook = ''
     export QEMU_IMAGE_ROOT=${builtins.toPath(./images)}
