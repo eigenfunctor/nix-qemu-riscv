@@ -6,6 +6,21 @@ import glob
 import os
 import subprocess
 
+def update_setup_script(expanded_path):
+    if not os.path.isfile(expanded_path):
+        raise OSError(errno.EIO, 'There is no storage image at: {}'.format(expanded_path))
+
+    setup_script_path = os.getenv('QEMU_SETUP_SCRIPT_PATH')
+    if setup_script_path is not None:
+        print('Copying setup script to vm storage')
+        subprocess.run([
+            'virt-copy-in',
+            '-a',
+            '{}'.format(expanded_path),
+            '{}'.format(setup_script_path),
+            '/etc'
+        ])
+
 if __name__ == "__main__":
     argp = argparse.ArgumentParser();
 
@@ -14,6 +29,7 @@ if __name__ == "__main__":
     argp.add_argument('-ss', '--storage-size', default='20g', type=str, help="amount of storage space for the vm (default 20G)")
     argp.add_argument('-ir', '--image-root', type=str, help="root directory of qemu image files (or set QEMU_IMAGE_ROOT)")
     argp.add_argument('-sr', '--storage-root', type=str, help="root directory of qemu storage image (or set QEMU_STORAGE_ROOT or QEMU_IMAGE_ROOT)")
+    argp.add_argument('--update-setup-script', action="store_true", help="only copy setup script to vm storage")
     args, qemu_args = argp.parse_known_args()
 
     image_root = args.image_root if args.image_root is not None else os.getenv('QEMU_IMAGE_ROOT');
@@ -86,7 +102,14 @@ if __name__ == "__main__":
             '-a',
             '{}'.format(expanded_path)
         ])
+
+        update_setup_script(expanded_path)
+
         print('')
+
+    if args.update_setup_script:
+      update_setup_script(expanded_path)
+      exit(0)
 
     subprocess.run([
         'qemu-system-riscv64',
