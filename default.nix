@@ -43,6 +43,9 @@ stdenv.mkDerivation {
 
   shellHook = ''
     [ -z "$QEMU_IMAGE_ROOT" ] && export QEMU_IMAGE_ROOT=${builtins.toPath(./images)}
-    [ -z "$QEMU_SETUP_SCRIPT_PATH" ] && export QEMU_SETUP_SCRIPT_PATH=${qemu-riscv64-setup}/etc/qemu-riscv64-setup.sh
+    [ -z "$QEMU_ARCHIVE_ROOT" ] && export QEMU_ARCHIVE_ROOT=${builtins.toPath(./archive)}
+    [ -z "$QEMU_SETUP_SCRIPT_PATH" ] && export QEMU_SETUP_SCRIPT_PATH=${qemu-riscv64-setup}/bin/qemu-riscv64-setup
+    [ -z "$QEMU_BOOTSTRAP_TOOLS_PATH" ] && export QEMU_BOOTSTRAP_TOOLS_PATH=${builtins.toPath(./bootstrap-tools)}
+    [ -z "$QEMU_NIX_DAEMON_SERVICE_PATH" ] && export QEMU_NIX_DAEMON_SERVICE_PATH=${builtins.toPath(./scripts/nix-daemon.service)}
   '';
 }

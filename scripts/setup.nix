@@ -4,15 +4,19 @@
 writeTextFile rec {
   name = "qemu-riscv64-setup";
   text = ''
+    #!/usr/bin/env bash
+    ARCHIVE_DIR=/opt/qemu-riscv64-setup.d/archive
     DOWNLOAD_DIR=/opt/qemu-riscv64-setup.d/downloads
     SRC_DIR=/opt/qemu-riscv64-setup.d/src
     INSTALL_PREFIX=/opt/qemu-riscv64-setup.d/local
 
+    [ ! -d $ARCHIVE_DIR ] && mkdir -p $ARCHIVE_DIR
     [ ! -d $DOWNLOAD_DIR ] && mkdir -p $DOWNLOAD_DIR
     [ ! -d $SRC_DIR ] && mkdir -p $SRC_DIR
     [ ! -d $INSTALL_PREFIX ] && mkdir -p $INSTALL_PREFIX
 
     echo
+    echo "using ARCHIVE_DIR=$ARCHIVE_DIR"
     echo "using DOWNLOAD_DIR=$DOWNLOAD_DIR"
     echo "using SRC_DIR=$SRC_DIR"
     echo "using INSTALL_PREFIX=$INSTALL_PREFIX"
@@ -64,23 +68,49 @@ writeTextFile rec {
     cp $INSTALL_PREFIX/lib/libboost_context.so* /usr/lib64/
 
     [ ! -e nix-src ] && mkdir nix-src && tar -xvf $DOWNLOAD_DIR/nix.tar.gz -C nix-src --strip-components 1
-    [ ! -e nixpkgs-src ] && mkdir nixpkgs-src && tar -xvf $DOWNLOAD_DIR/nixpkgs.tar.gz -C nixpkgs-src --strip-components 1
+    [ ! -e nixpkgs ] && mkdir nixpkgs && tar -xvf $DOWNLOAD_DIR/nixpkgs.tar.gz -C nixpkgs --strip-components 1
 
     pushd nix-src
 
-    ./bootstrap.sh && \
-    ./configure --disable-doc-gen --with-sandbox-shell=/bin/sh && \
-    make clean && \
-    make -j $(nproc) && \
-    make install
+    if [[ ! "$@" =~ .*--skip-build.* ]]; then
+      ./bootstrap.sh && \
+      ./configure --disable-doc-gen --with-sandbox-shell=/bin/sh && \
+      make clean && \
+      make -j $(nproc) && \
+      make install
+    fi
 
     [ ! -d /nix ] && mkdir -m 0755 /nix
-    chown -R $USER:$USER /nix
+    chown -R riscv:riscv /nix
+
+    groupadd -r nixbld
+    for n in $(seq 1 10); do
+      useradd -c "Nix build user $n" \
+      -d /var/empty -g nixbld -G nixbld -M -N -r -s "$(which nologin)" \
+      nixbld$n;
+    done
+
+    chmod 644 /etc/systemd/system/nix-daemon.service
+    systemctl nix-daemon enable
+    service nix-daemon start
+
+    echo "export NIX_REMOTE=daemon" > /etc/profile.d/set-nix-remote.sh
+
+    popd
+
+    pushd $SRC_DIR/bootstrap-tools
+
+    su riscv -c "\
+      export NIX_REMOTE=daemon; \
+      nix copy --from file://$ARCHIVE_DIR/bootstrap-tools && \
+      nix build -f ./ bootstrapTools --no-link && \
+      nix-env -f ./ -i bootstrapTools \
+    "
 
     popd
 
     popd
-
   '';
-  destination = "/etc/${name}.sh";
+  destination = "/bin/${name}";
+  executable = true;
 }
