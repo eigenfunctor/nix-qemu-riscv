@@ -1,42 +1,55 @@
-{ boostUrl, nixUrl, nixpkgsUrl, writeTextFile }:
+{ writeTextFile, nixpkgsChannelUrl }:
 
 
 writeTextFile rec {
   name = "qemu-riscv64-setup";
   text = ''
     #!/usr/bin/env sh
+    set -e
 
-    matches=(/nix/store/*nix-riscv64-unknown-linux-gnu*)
+    echo
+    echo "Setting up nix for riscv...."
+    echo
+
+    matches=(/nix/store/*nix-riscv64-unknown-linux-gnu-*[0-9.])
     export NIX_CROSS_OUTPUT_PATH=''${matches[0]}
 
-    dnf -y install file which
+    if [ -z $NIX_CROSS_OUTPUT_PATH ]; then
+        echo "Cannot find cross compiled nix path."
+        echo
+        exit 1
+    fi
+
+    groupadd -rf nixbld
+    for n in $(seq 1 10); do
+      id -u nixbld$n &>/dev/null || (useradd -c "Nix build user $n" \
+        -d /var/empty -g nixbld -G nixbld -M -N -r -s /usr/bin/nologin \
+        nixbld$n)
+    done
+
+    $NIX_CROSS_OUTPUT_PATH/bin/nix copy --no-check-sigs --from file:///opt/nix-cross-archive $NIX_CROSS_OUTPUT_PATH
 
     chown -R riscv:riscv /nix
 
-    groupadd -r nixbld
-    for n in $(seq 1 10); do
-      useradd -c "Nix build user $n" \
-      -d /var/empty -g nixbld -G nixbld -M -N -r -s "$(which nologin)" \
-      nixbld$n;
-    done
-
-    cp $NIX_CROSS_OUTPUT_PATH/lib/systemd/system/nix-daemon.service /etc/systemd/system/nix-daemon.service
-    cp $NIX_CROSS_OUTPUT_PATH/lib/systemd/system/nix-daemon.socket /etc/systemd/system/nix-daemon.socket
-    cp $NIX_CROSS_OUTPUT_PATH/etc/profile.d/nix-daemon.sh /etc/profile.d/nix-daemon.sh
     cp $NIX_CROSS_OUTPUT_PATH/etc/profile.d/nix.sh /etc/profile.d/nix.sh
-    echo "export NIX_REMOTE=daemon" > /etc/profile.d/nix-remote.sh
+    echo "export NIX_PATH=$NIX_PATH:nixpkgs=/opt/nixpkgs-override" > /etc/profile.d/nix-override-path.sh
+    chown root:root /etc/profile.d/nix.sh
 
-    chown -R root:root /etc/systemd
-    chown -R root:root /etc/profile.d
-    chmod 644 /etc/systemd/system/nix-daemon.service
-    chmod 644 /etc/systemd/system/nix-daemon.socket
-    chmod 644 /etc/profile.d/nix-daemon.sh
-    chmod 644 /etc/profile.d/nix.sh
-    chmod 644 /etc/profile.d/nix-remote.sh
+    chmod 755 /opt/bootstrap-tools-archive/on-server/busybox
 
-    systemctl nix-daemon enable
-    service nix-daemon start
+    su - riscv -c "\
+      $NIX_CROSS_OUTPUT_PATH/bin/nix-channel --add ${nixpkgsChannelUrl} nixpkgs-base && \
+      $NIX_CROSS_OUTPUT_PATH/bin/nix-channel --update
+    "
 
+    [ ! -d /home/riscv/.nix-profile ] && mkdir /home/riscv/.nix-profile
+    [ ! -d /home/riscv/.nix-profile/bin ] && ln -s $NIX_CROSS_OUTPUT_PATH/bin /home/riscv/.nix-profile/bin
+    chown -R riscv:riscv /home/riscv/.nix-profile
+
+    echo
+    echo "Setup Successful"
+    echo "Login again or run 'source /etc/profile.d/nix-override-path.sh; source /etc/profile.d/nix.sh'"
+    echo
   '';
   destination = "/bin/${name}";
   executable = true;
