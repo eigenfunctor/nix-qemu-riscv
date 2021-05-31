@@ -1,5 +1,10 @@
 nixpkgsArgs:
   import <nixpkgs-base> (nixpkgsArgs // {
+    overlays = [
+      (import ./overlays/xz-pthread-fix.nix)
+      (import ./overlays/bash-config-guess-update.nix)
+    ] ++ (nixpkgsArgs.overlays or []);
+
     stdenvStages = args:
       import <nixpkgs-base/pkgs/stdenv/linux> (args // {
         bootstrapFiles = {
