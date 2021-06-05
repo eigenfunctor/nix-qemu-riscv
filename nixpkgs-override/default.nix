@@ -3,6 +3,7 @@ nixpkgsArgs:
     overlays = [
       (import ./overlays/xz-pthread-fix.nix)
       (import ./overlays/bash-config-guess-update.nix)
+      (import ./overlays/libtool-config-guess-update.nix)
     ] ++ (nixpkgsArgs.overlays or []);
 
     stdenvStages = args:

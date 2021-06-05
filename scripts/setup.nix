@@ -46,6 +46,11 @@ writeTextFile rec {
     [ ! -d /home/riscv/.nix-profile/bin ] && ln -s $NIX_CROSS_OUTPUT_PATH/bin /home/riscv/.nix-profile/bin
     chown -R riscv:riscv /home/riscv/.nix-profile
 
+    dnf install -y \
+      git \
+      htop \
+      tar \
+
     echo
     echo "Setup Successful"
     echo "Login again or run 'source /etc/profile.d/nix-override-path.sh; source /etc/profile.d/nix.sh'"
