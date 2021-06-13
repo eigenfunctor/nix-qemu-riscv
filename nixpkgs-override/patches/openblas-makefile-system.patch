@@ -1,0 +1,19 @@
+diff --git a/Makefile.system b/Makefile.system
+index 5adde36..4d14f76 100644
+--- a/Makefile.system
++++ b/Makefile.system
+@@ -1411,10 +1411,10 @@ ifndef FCOMMON_OPT
+ FCOMMON_OPT = -O2 -frecursive
+ endif
+ 
+-override CFLAGS     += $(COMMON_OPT) $(CCOMMON_OPT) -I$(TOPDIR)
+-override PFLAGS     += $(COMMON_OPT) $(CCOMMON_OPT) -I$(TOPDIR) -DPROFILE $(COMMON_PROF)
+-override FFLAGS     += $(COMMON_OPT) $(FCOMMON_OPT)
+-override FPFLAGS    += $(FCOMMON_OPT) $(COMMON_PROF)
++override CFLAGS     += $(COMMON_OPT) $(CCOMMON_OPT) -I$(TOPDIR) $(EXTRA_CFLAGS)
++override PFLAGS     += $(COMMON_OPT) $(CCOMMON_OPT) -I$(TOPDIR) -DPROFILE $(COMMON_PROF) $(EXTRA_PFLAGS)
++override FFLAGS     += $(COMMON_OPT) $(FCOMMON_OPT) $(EXTRA_FFLAGS)
++override FPFLAGS    += $(FCOMMON_OPT) $(COMMON_PROF) $(EXTRA_FPFLAGS)
+ #MAKEOVERRIDES =
+ 
+ ifdef NEED_PIC

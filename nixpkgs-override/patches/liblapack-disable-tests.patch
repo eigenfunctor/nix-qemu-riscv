@@ -1,0 +1,18 @@
+--- a/Makefile
++++ b/Makefile
+@@ -8,7 +8,7 @@ TOPSRCDIR = .
+ include $(TOPSRCDIR)/make.inc
+ 
+ .PHONY: all
+-all: lapack_install lib blas_testing lapack_testing
++all: lapack_install lib
+ 
+ .PHONY: lib
+ lib: lapacklib tmglib
+@@ -179,4 +179,4 @@ cleantest:
+ 	$(MAKE) -C INSTALL cleantest
+ 	$(MAKE) -C BLAS cleantest
+ 	$(MAKE) -C CBLAS cleantest
+-	$(MAKE) -C TESTING cleantest
+\ No newline at end of file
++	$(MAKE) -C TESTING cleantest
