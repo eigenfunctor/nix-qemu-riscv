@@ -51,6 +51,12 @@ writeTextFile rec {
       htop \
       tar \
 
+    su - riscv -c "\
+      source /etc/profile.d/nix-override-path.sh
+      source /etc/profile.d/nix.sh
+      $NIX_CROSS_OUTPUT_PATH/bin/nix copy --no-check-sigs -f /opt/nix-ghc-riscv64 --from file:///opt/nix-ghc-riscv64-archive
+    "
+
     echo
     echo "Setup Successful"
     echo "Login again or run 'source /etc/profile.d/nix-override-path.sh; source /etc/profile.d/nix.sh'"

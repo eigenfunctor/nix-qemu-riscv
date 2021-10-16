@@ -2,8 +2,8 @@
 
 import argparse
 import errno
-import pathlib
 import os
+import pathlib
 import subprocess
 
 
@@ -12,17 +12,8 @@ def glob(root, pattern):
     return list(map(lambda p: str(p), pathlib.Path(root).glob(pattern)))
 
 
-def update_setup_files(storage_image_path):
-    if not os.path.isfile(storage_image_path):
-        raise OSError(
-            errno.EIO, 'There is no storage image at: {}'.format(storage_image_path))
-
+def update_setup_script(storage_image_path):
     setup_script_path = os.getenv('QEMU_SETUP_SCRIPT_PATH')
-    nixpkgs_override_path = os.getenv('QEMU_NIXPKGS_OVERRIDE_PATH')
-    nix_cross_path = os.getenv('QEMU_NIX_CROSS_PATH')
-    bootstrap_tools_path = os.getenv('QEMU_BOOTSTRAP_TOOLS_PATH')
-    nix_cross_archive_path = os.getenv('QEMU_NIX_CROSS_ARCHIVE')
-    bootstrap_tools_output_path = os.getenv('QEMU_BOOTSTRAP_TOOLS_OUTPUT')
 
     print('Copying setup script to vm storage')
     subprocess.run([
@@ -32,6 +23,20 @@ def update_setup_files(storage_image_path):
         setup_script_path,
         '/usr/bin'
     ])
+
+
+def update_setup_files(storage_image_path):
+    if not os.path.isfile(storage_image_path):
+        raise OSError(
+            errno.EIO, 'There is no storage image at: {}'.format(storage_image_path))
+
+    nixpkgs_override_path = os.getenv('QEMU_NIXPKGS_OVERRIDE_PATH')
+    nix_cross_path = os.getenv('QEMU_NIX_CROSS_PATH')
+    bootstrap_tools_path = os.getenv('QEMU_BOOTSTRAP_TOOLS_PATH')
+    nix_cross_archive_path = os.getenv('QEMU_NIX_CROSS_ARCHIVE')
+    nix_ghc_riscv64_path = os.getenv('QEMU_NIX_GHC_RISCV64_PATH')
+    nix_ghc_riscv64_archive_path = os.getenv('QEMU_NIX_GHC_RISCV64_ARCHIVE')
+    bootstrap_tools_output_path = os.getenv('QEMU_BOOTSTRAP_TOOLS_OUTPUT')
 
     print('Cross compiling nix for riscv64')
     subprocess.run([
@@ -50,6 +55,15 @@ def update_setup_files(storage_image_path):
         '--max-jobs', 'auto',
         '--no-link',
         '-f',
+        nix_ghc_riscv64_path,
+    ])
+    subprocess.run([
+        'nix',
+        'build',
+        '--cores', '0',
+        '--max-jobs', 'auto',
+        '--no-link',
+        '-f',
         bootstrap_tools_path,
         'build'
     ])
@@ -60,6 +74,14 @@ def update_setup_files(storage_image_path):
         nix_cross_path,
         '--to',
         'file://{}'.format(nix_cross_archive_path)
+    ])
+    subprocess.run([
+        'nix',
+        'copy',
+        '-f',
+        nix_ghc_riscv64_path,
+        '--to',
+        'file://{}'.format(nix_ghc_riscv64_archive_path)
     ])
 
     print("Copying cross compiled nix to vm storage")
@@ -96,6 +118,20 @@ def update_setup_files(storage_image_path):
         '-a',
         storage_image_path,
         nix_cross_archive_path,
+        '/opt'
+    ])
+    subprocess.run([
+        'virt-copy-in',
+        '-a',
+        storage_image_path,
+        nix_ghc_riscv64_path,
+        '/opt'
+    ])
+    subprocess.run([
+        'virt-copy-in',
+        '-a',
+        storage_image_path,
+        nix_ghc_riscv64_archive_path,
         '/opt'
     ])
     subprocess.run([
@@ -140,6 +176,8 @@ if __name__ == "__main__":
                       help="root directory of qemu storage image (or set QEMU_STORAGE_ROOT or QEMU_IMAGE_ROOT)")
     argp.add_argument('-uf', '--update-setup-files', action="store_true",
                       help="only copy setup files to vm storage")
+    argp.add_argument('-us', '--update-setup-script', action="store_true",
+                      help="only copy setup script to vm storage")
 
     args, qemu_args = argp.parse_known_args()
 
@@ -178,29 +216,18 @@ if __name__ == "__main__":
             rootfs_path,
             storage_image_path
         ])
-
         subprocess.run([
             'truncate',
             '-s',
             args.storage_size,
             storage_image_path
         ])
-
-        subprocess.run([
-            'qemu-img',
-            'create',
-            '-f',
-            'raw',
-            '-F',
-            'raw',
-            '-b',
-            rootfs_path,
-            storage_image_path
-        ])
         subprocess.run([
             'virt-resize',
             '-v',
             '-x',
+            '--format',
+            'raw',
             '--expand',
             '/dev/sda4',
             rootfs_path,
@@ -226,8 +253,14 @@ if __name__ == "__main__":
         exit(0)
 
     if args.update_setup_files:
+        update_setup_script(storage_image_path)
         update_setup_files(storage_image_path)
         print('Successfully updated vm setup files')
+        exit(0)
+
+    if args.update_setup_script:
+        update_setup_script(storage_image_path)
+        print('Successfully updated vm setup script')
         exit(0)
 
     if not os.path.isfile(storage_image_path):
