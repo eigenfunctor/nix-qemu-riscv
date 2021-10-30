@@ -12,16 +12,24 @@ def glob(root, pattern):
     return list(map(lambda p: str(p), pathlib.Path(root).glob(pattern)))
 
 
-def update_setup_script(storage_image_path):
+def update_setup_scripts(storage_image_path):
     setup_script_path = os.getenv('QEMU_SETUP_SCRIPT_PATH')
+    nixpkgs_override_path = os.getenv('QEMU_NIXPKGS_OVERRIDE_PATH')
 
-    print('Copying setup script to vm storage')
+    print('Copying setup scripts to vm storage')
     subprocess.run([
         'virt-copy-in',
         '-a',
         storage_image_path,
         setup_script_path,
         '/usr/bin'
+    ])
+    subprocess.run([
+        'virt-copy-in',
+        '-a',
+        storage_image_path,
+        nixpkgs_override_path,
+        '/opt'
     ])
 
 
@@ -30,12 +38,10 @@ def update_setup_files(storage_image_path):
         raise OSError(
             errno.EIO, 'There is no storage image at: {}'.format(storage_image_path))
 
-    nixpkgs_override_path = os.getenv('QEMU_NIXPKGS_OVERRIDE_PATH')
     nix_cross_path = os.getenv('QEMU_NIX_CROSS_PATH')
+    boot_ghc_path = os.getenv('QEMU_BOOT_GHC_PATH')
     bootstrap_tools_path = os.getenv('QEMU_BOOTSTRAP_TOOLS_PATH')
     nix_cross_archive_path = os.getenv('QEMU_NIX_CROSS_ARCHIVE')
-    nix_ghc_riscv64_path = os.getenv('QEMU_NIX_GHC_RISCV64_PATH')
-    nix_ghc_riscv64_archive_path = os.getenv('QEMU_NIX_GHC_RISCV64_ARCHIVE')
     bootstrap_tools_output_path = os.getenv('QEMU_BOOTSTRAP_TOOLS_OUTPUT')
 
     print('Cross compiling nix for riscv64')
@@ -55,7 +61,8 @@ def update_setup_files(storage_image_path):
         '--max-jobs', 'auto',
         '--no-link',
         '-f',
-        nix_ghc_riscv64_path,
+        bootstrap_tools_path,
+        'build'
     ])
     subprocess.run([
         'nix',
@@ -64,8 +71,7 @@ def update_setup_files(storage_image_path):
         '--max-jobs', 'auto',
         '--no-link',
         '-f',
-        bootstrap_tools_path,
-        'build'
+        '{}/boot-ghc'.format(boot_ghc_path),
     ])
     subprocess.run([
         'nix',
@@ -74,14 +80,6 @@ def update_setup_files(storage_image_path):
         nix_cross_path,
         '--to',
         'file://{}'.format(nix_cross_archive_path)
-    ])
-    subprocess.run([
-        'nix',
-        'copy',
-        '-f',
-        nix_ghc_riscv64_path,
-        '--to',
-        'file://{}'.format(nix_ghc_riscv64_archive_path)
     ])
 
     print("Copying cross compiled nix to vm storage")
@@ -95,9 +93,37 @@ def update_setup_files(storage_image_path):
             .decode() \
             .splitlines()
 
-    if not nix_cross_path:
+    if not nix_cross_dep_paths:
         raise OSError(
             errno.EIO, 'nix path-info found nothing for the compiled nix derviation at: {}'.format(nix_cross_path))
+
+    print("Copying cross compiled bootstrap GHC to vm storage")
+    boot_ghc_dep_paths = None
+    with subprocess.Popen(
+        ['nix', 'path-info', '-f', '{}/boot-ghc'.format(boot_ghc_path), '-r'],
+        stdout=subprocess.PIPE
+    ) as p:
+        boot_ghc_dep_paths = p.stdout \
+            .read() \
+            .decode() \
+            .splitlines()
+
+    boot_ghc_store_path = None
+    with subprocess.Popen(
+        ['nix', 'path-info', '-f', '{}/boot-ghc'.format(boot_ghc_path)],
+        stdout=subprocess.PIPE
+    ) as p:
+        boot_ghc_store_paths = p.stdout \
+            .read() \
+            .decode() \
+            .splitlines()
+
+        if len(boot_ghc_store_paths) > 0:
+            boot_ghc_store_path = boot_ghc_store_paths[0]
+
+    if not boot_ghc_store_path:
+        raise OSError(
+            errno.EIO, 'nix path-info found nothing for the compiled GHC derviation at: {}'.format(boot_ghc_path))
 
     subprocess.run([
         'virt-customize',
@@ -107,6 +133,14 @@ def update_setup_files(storage_image_path):
         '/opt/bootstrap-tools-archive'
     ])
     subprocess.run([
+        'virt-copy-in',
+        '-a',
+        storage_image_path,
+        *glob(bootstrap_tools_output_path, '*'),
+        '/opt/bootstrap-tools-archive'
+    ])
+
+    subprocess.run([
         'virt-customize',
         '-a',
         storage_image_path,
@@ -117,43 +151,44 @@ def update_setup_files(storage_image_path):
         'virt-copy-in',
         '-a',
         storage_image_path,
+        *nix_cross_dep_paths,
+        '/nix/store'
+    ])
+    subprocess.run([
+        'virt-copy-in',
+        '-a',
+        storage_image_path,
         nix_cross_archive_path,
         '/opt'
     ])
+
+    subprocess.run([
+        'virt-customize',
+        '-a',
+        storage_image_path,
+        '--mkdir',
+        '/nix/store/boot-ghc-binary'
+    ])
     subprocess.run([
         'virt-copy-in',
         '-a',
         storage_image_path,
-        nix_ghc_riscv64_path,
+        boot_ghc_path,
         '/opt'
     ])
     subprocess.run([
         'virt-copy-in',
         '-a',
         storage_image_path,
-        nix_ghc_riscv64_archive_path,
-        '/opt'
-    ])
-    subprocess.run([
-        'virt-copy-in',
-        '-a',
-        storage_image_path,
-        nixpkgs_override_path,
-        '/opt'
-    ])
-    subprocess.run([
-        'virt-copy-in',
-        '-a',
-        storage_image_path,
-        *glob(bootstrap_tools_output_path, '*'),
-        '/opt/bootstrap-tools-archive'
-    ])
-    subprocess.run([
-        'virt-copy-in',
-        '-a',
-        storage_image_path,
-        *nix_cross_dep_paths,
+        *boot_ghc_dep_paths,
         '/nix/store'
+    ])
+    subprocess.run([
+        'virt-copy-in',
+        '-a',
+        storage_image_path,
+        *glob(boot_ghc_store_path, '*'),
+        '/nix/store/boot-ghc-binary'
     ])
 
 
@@ -248,18 +283,19 @@ if __name__ == "__main__":
             storage_image_path
         ])
 
+        update_setup_scripts(storage_image_path)
         update_setup_files(storage_image_path)
         print('Successfully provisioned storage image')
         exit(0)
 
     if args.update_setup_files:
-        update_setup_script(storage_image_path)
+        update_setup_scripts(storage_image_path)
         update_setup_files(storage_image_path)
         print('Successfully updated vm setup files')
         exit(0)
 
     if args.update_setup_script:
-        update_setup_script(storage_image_path)
+        update_setup_scripts(storage_image_path)
         print('Successfully updated vm setup script')
         exit(0)
 

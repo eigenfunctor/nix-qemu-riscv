@@ -1,0 +1,13 @@
+--- a/src/riscv/ffitarget.h
++++ b/src/riscv/ffitarget.h
+@@ -32,10 +32,6 @@
+ #error "Please do not include ffitarget.h directly into your source.  Use ffi.h instead."
+ #endif
+ 
+-#ifndef __riscv
+-#error "libffi was configured for a RISC-V target but this does not appear to be a RISC-V compiler."
+-#endif
+-
+ #ifndef LIBFFI_ASM
+ 
+ typedef unsigned long ffi_arg;

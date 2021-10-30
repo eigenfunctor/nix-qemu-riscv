@@ -32,7 +32,7 @@ writeTextFile rec {
     chown -R riscv:riscv /nix
 
     cp $NIX_CROSS_OUTPUT_PATH/etc/profile.d/nix.sh /etc/profile.d/nix.sh
-    echo "export NIX_PATH=$NIX_PATH:nixpkgs=/opt/nixpkgs-override" > /etc/profile.d/nix-override-path.sh
+    echo "export NIX_PATH=\$NIX_PATH:nixpkgs=/opt/nixpkgs-override" > /etc/profile.d/nix-override-path.sh
     chown root:root /etc/profile.d/nix.sh
 
     chmod 755 /opt/bootstrap-tools-archive/on-server/busybox
@@ -50,12 +50,7 @@ writeTextFile rec {
       git \
       htop \
       tar \
-
-    su - riscv -c "\
-      source /etc/profile.d/nix-override-path.sh
-      source /etc/profile.d/nix.sh
-      $NIX_CROSS_OUTPUT_PATH/bin/nix copy --no-check-sigs -f /opt/nix-ghc-riscv64 --from file:///opt/nix-ghc-riscv64-archive
-    "
+      bzip2 \
 
     echo
     echo "Setup Successful"

@@ -48,10 +48,11 @@ stdenv.mkDerivation {
     [ -z "$QEMU_SETUP_SCRIPT_PATH" ] && export QEMU_SETUP_SCRIPT_PATH=${qemu-riscv64-setup}/bin/qemu-riscv64-setup
     [ -z "$QEMU_NIXPKGS_OVERRIDE_PATH" ] && export QEMU_NIXPKGS_OVERRIDE_PATH=${builtins.toPath(./nixpkgs-override)}
     [ -z "$QEMU_NIX_CROSS_PATH" ] && export QEMU_NIX_CROSS_PATH=${builtins.toPath(./nix-cross)}
+    [ -z "$QEMU_BOOT_GHC_PATH" ] && export QEMU_BOOT_GHC_PATH=${builtins.toPath(./ghc)}
     [ -z "$QEMU_BOOTSTRAP_TOOLS_PATH" ] && export QEMU_BOOTSTRAP_TOOLS_PATH=${builtins.toPath(./bootstrap-tools)}
     [ -z "$QEMU_NIX_CROSS_ARCHIVE" ] && export QEMU_NIX_CROSS_ARCHIVE=${builtins.toPath(./archive/nix-cross-archive)}
-    [ -z "$QEMU_NIX_GHC_RISCV64_PATH" ] && export QEMU_NIX_GHC_RISCV64_PATH=${builtins.toPath(./nix-ghc-riscv64)}
-    [ -z "$QEMU_NIX_GHC_RISCV64_ARCHIVE" ] && export QEMU_NIX_GHC_RISCV64_ARCHIVE=${builtins.toPath(./archive/nix-ghc-riscv64-archive)}
     [ -z "$QEMU_BOOTSTRAP_TOOLS_OUTPUT" ] && export QEMU_BOOTSTRAP_TOOLS_OUTPUT=${(import ./bootstrap-tools {}).build.outPath}
+    [ -z "$QEMU_BOOT_PACKAGES_PATH" ] && export QEMU_BOOT_PACKAGES_PATH=${builtins.toPath(./nixpkgs-override/boot-packages)}
+    [ -z "$QEMU_BOOT_PACKAGES_OUTPUT" ] && export QEMU_BOOT_PACKAGES_OUTPUT=${(import ./nixpkgs-override/boot-packages {}).outPath}
   '';
 }

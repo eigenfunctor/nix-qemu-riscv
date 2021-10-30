@@ -2,11 +2,13 @@ nixpkgsArgs:
   import <nixpkgs-base> (nixpkgsArgs // {
     overlays = [
       (import ./overlays/xz-pthread-fix.nix)
-      (import ./overlays/bash-config-guess-update.nix)
+      (import ./overlays/bintools-wrapper.nix)
       (import ./overlays/libtool-config-guess-update.nix)
       (import ./overlays/openblas-riscv64-support.nix)
       (import ./overlays/boost-17-override.nix)
       (import ./overlays/lapack-gfortran-spec-fix.nix)
+      # GHC always comes last
+      (import ../ghc/overlay.nix)
     ] ++ (nixpkgsArgs.overlays or []);
 
     stdenvStages = args:

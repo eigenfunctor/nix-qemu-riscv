@@ -1,0 +1,22 @@
+index e7379045..27eb8591 100644
+--- a/rts/package.conf.in
++++ b/rts/package.conf.in
+@@ -63,6 +63,7 @@ extra-libraries:
+                              , "elf"
+                              , "dw"             /* for backtraces */
+ #endif
++                             , "atomic"
+ 
+ #if defined(INSTALLING)
+ include-dirs:           INCLUDE_DIR FFI_INCLUDE_DIR
+index cebf6795..fd8a1d8d 100644
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -121,6 +121,7 @@ library
+        extra-libraries: elf dw
+     if flag(libnuma)
+        extra-libraries: numa
++    extra-libraries: atomic
+     if !flag(smp)
+        cpp-options: -DNOSMP
+ 
